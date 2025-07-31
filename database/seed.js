@@ -7,10 +7,10 @@ const seed = async () => {
     await db.sync({ force: true }); // Drop and recreate tables
 
     const users = await User.bulkCreate([
-      { name: "jeramy", password_hash: User.hashPassword("123"), email: "jeramy@gmail.com" },
-      { name: "aiyanna", password_hash: User.hashPassword("456"), email: "aiyanna@gmail.com" },
-      { name: "emmanuel", password_hash: User.hashPassword("789"), email: "emmanuel@gmail.com" },
-      { name: "olivia", password_hash: User.hashPassword("101112"), email: "olivia@gmail.com" },
+      { username: "jeramy", password_hash: User.hashPassword("123456"), email: "jeramy@gmail.com" },
+      { username: "aiyanna", password_hash: User.hashPassword("456"), email: "aiyanna@gmail.com" },
+      { username: "emmanuel", password_hash: User.hashPassword("789"), email: "emmanuel@gmail.com" },
+      { username: "olivia", password_hash: User.hashPassword("101112"), email: "olivia@gmail.com" },
     ]);
 
     console.log(`👤 Created ${users.length} users`);
