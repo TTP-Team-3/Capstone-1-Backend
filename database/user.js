@@ -26,7 +26,7 @@ const User = db.define("user", {
 
   email: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: false,
     unique: true,
     validate: {
       isEmail: true,
@@ -43,20 +43,20 @@ const User = db.define("user", {
     type: DataTypes.STRING,
     allowNull: true,
     comment: "Securely hashed password",
-  },
-
-  created_at: {
-    type: DataTypes.DATE, 
-    defaultValue: DataTypes.NOW
-  }
+  }, 
+},{
+    tableName: 'users', 
+    timestamps: true, 
+    createdAt: 'created_at', 
+    updatedAt: 'updated_at',
 });
 
 // Instance method to check password
 User.prototype.checkPassword = function (password) {
-  if (!this.passwordHash) {
+  if (!this.password_hash) {
     return false; // Auth0 users don't have passwords
   }
-  return bcrypt.compareSync(password, this.passwordHash);
+  return bcrypt.compareSync(password, this.password_hash);
 };
 
 // Class method to hash password
