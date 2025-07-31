@@ -13,4 +13,16 @@ router.get("/", async (req, res) => {
     }
 });
 
+router.get("/:id", async (req, res) => {
+    try {
+        const user = await User.findByPk(req.params.id, {
+            attributes: { exclude: ["password_hash"] }
+        });
+
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch user" })
+    }
+});
+
 module.exports = router; 
