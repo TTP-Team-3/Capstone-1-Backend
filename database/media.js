@@ -10,12 +10,21 @@ const Media = db.define("media", {
 
     echo_id: {
         type: DataTypes.INTEGER,
-        allowNull: false, 
+        allowNull: true, 
         references: {
             model: 'echoes',
             key: 'id'
         }
     }, 
+
+    reply_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true, 
+        references: {
+            model: 'replies',
+            key: 'id'
+        }
+    },
 
     type: {
         type: DataTypes.ENUM('image', 'audio', 'video'),
@@ -49,7 +58,17 @@ const Media = db.define("media", {
 }, {
     timestamps: true,
     createdAt: 'created_at', 
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    validate: {
+        eitherEchoOrReply() {
+            if (!this.echo_id && !this.reply_id) {
+                throw new Error('Media must belong to either an echo or reply.');
+            }
+            if (this.echo_id && this.reply_id) {
+                throw new Error('Media cannot belong to both an echo and a reply.');
+            }
+        }
+    }
 }); 
 
 module.exports = Media; 
