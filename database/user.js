@@ -12,6 +12,7 @@ const User = db.define("user", {
   username: {
     type: DataTypes.STRING,
     allowNull: false,
+    unique: true
   },
 
   bio: {

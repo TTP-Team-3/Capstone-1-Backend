@@ -22,7 +22,7 @@ const Echo_tags = db.define('echo_tags', {
         }
     }
 }, {
-    tableName: 'echo_tas',
+    tableName: 'echo_tags',
     timestamps: false
 });
 
