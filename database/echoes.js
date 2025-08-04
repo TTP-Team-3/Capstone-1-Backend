@@ -1,16 +1,20 @@
 const { DataTypes } = require("sequelize");
 const db = require("./db");
 
-const Echoes = db.define("user", {
+const Echoes = db.define("echoes", {
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true, 
     primaryKey: true, 
   },
 
- sender_id: {
+  sender_id: {
     type: DataTypes.INTEGER,
-    allowNull: false
+    allowNull: false, 
+    references: {
+      model: 'users', // target table 
+      key: 'id'
+    }
  },
 
  type: {
@@ -49,7 +53,7 @@ const Echoes = db.define("user", {
  }
 
 }, {
-    tableName: 'Echoes', 
+    tableName: 'echoes', 
     timestamps: true, 
     createdAt: 'created_at', 
     updatedAt: 'updated_at',
