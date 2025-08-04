@@ -78,7 +78,7 @@ Echoes.belongsToMany(User, {
   otherKey: 'recipient_id',
   as: 'recipients'
 });
-User.belongsTo(Echoes, {
+User.belongsToMany(Echoes, {
   through: Echo_recipients, 
   foreignKey: 'recipient_id',
   otherKey: 'echo_id',
@@ -92,6 +92,8 @@ User.belongsToMany(User, {
   foreignKey: 'user_id',
   otherKey: 'friend_id'
 })
+
+
 module.exports = {
   db,
   User,
