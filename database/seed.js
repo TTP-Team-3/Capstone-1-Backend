@@ -1,5 +1,6 @@
 const db = require("./db");
 const { User } = require("./index");
+const { Echoes } = require('./index');
 
 const seed = async () => {
   try {
@@ -48,6 +49,9 @@ const seed = async () => {
         show_sender_name: true
       }
     ]);
+
+    console.log(`Created ${echoes.length} echoes`);
+    
     console.log("🌱 Seeded the database");
   } catch (error) {
     console.error("Error seeding database:", error);
