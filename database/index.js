@@ -15,13 +15,13 @@ const Tags = require('./tags');
 
 // Echoes <> user (sender)
 Echoes.belongsTo(User, {
-  foreignKey: 'sender_id', 
+  foreignKey: 'user_id', 
   as: 'sender', 
   onDelete: 'CASCADE', 
   onUpdate: 'CASCADE'
 });
 User.hasMany(Echoes, {
-  foreignKey: 'sender_id', 
+  foreignKey: 'user_id', 
   as: 'sent_echoes', 
   onDelete: 'CASCADE', 
   onUpdate: 'CASCADE'
@@ -190,9 +190,17 @@ User.belongsToMany(Echoes, {
 // Users <> Users (friends)
 User.belongsToMany(User, {
   through: Friends,
-  as: 'friends',
+  as: 'outgoingFriends', // users I added
   foreignKey: 'user_id',
   otherKey: 'friend_id', 
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE'
+});
+User.belongsToMany(User, {
+  through: Friends, 
+  as: 'incomingFriends', // user who added me
+  foreignKey: 'friend_id',
+  otherKey: 'user_id',
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE'
 });

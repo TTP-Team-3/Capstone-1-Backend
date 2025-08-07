@@ -8,7 +8,7 @@ const Echoes = db.define("echoes", {
     primaryKey: true, 
   },
 
-  sender_id: {
+  user_id: {
     type: DataTypes.INTEGER,
     allowNull: false, 
     references: {
