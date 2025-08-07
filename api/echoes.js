@@ -34,6 +34,10 @@ router.get("/:id", authenticateJWT, async (req, res) => {
             return res.json(echo);
         }
 
+        // if (echo.recipient_type === "friend") {
+        //     const echo_visibility 
+        // }
+
         res.status(403).json({no_access: "You cannot access this echo"});
 
     } catch (err) {

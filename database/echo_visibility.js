@@ -6,12 +6,10 @@ const Echo_visibility = db.define("echo_visibility", {
     type: DataTypes.INTEGER,
     primaryKey: true, 
     allowNull: false,
-  },
-
-  scope: {
-    type: DataTypes.ENUM("self", "friends", "public", "custom"),
-    allowNull: false, 
-
+    references: {
+        model: 'echoes', 
+        key: 'id'
+    }
   },
 
   note: {
