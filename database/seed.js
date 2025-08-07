@@ -1,5 +1,6 @@
 const db = require("./db");
 const { User } = require("./index");
+const { Echoes } = require('./index');
 
 const seed = async () => {
   try {
@@ -15,8 +16,39 @@ const seed = async () => {
 
     console.log(`👤 Created ${users.length} users`);
 
-    // Create more seed data here once you've created your models
-    // Seed files are a great way to test your database schema!
+    const echoes = await Echoes.bulkCreate([
+      {
+        user_id: users[0].id,
+        recipient_type: "self",
+        text: "This is Jeramys private echo",
+        unlock_datetime: new Date(Date.now() + 1000 * 60 * 60), // unlock in 1 hour
+        show_sender_name: true
+      },
+      {
+        user_id: users[1].id,
+        recipient_type: "friend",
+        text: "Aiyannas echo to friends",
+        unlock_datetime: new Date(Date.now() - 1000 * 60 * 60), // already unlocked
+        show_sender_name: false
+      },
+      {
+        user_id: users[2].id,
+        recipient_type: "public",
+        text: "Public echo by Emmanuel",
+        unlock_datetime: new Date(),
+        is_archived: true,
+        show_sender_name: true
+      },
+      {
+        user_id: users[3].id,
+        recipient_type: "public",
+        text: "Olivias echo is for everyone!",
+        unlock_datetime: new Date(Date.now() + 1000 * 60 * 60 * 24), // unlock in 1 day
+        show_sender_name: true
+      }
+    ]);
+
+    console.log(`Created ${echoes.length} echoes`);
 
     console.log("🌱 Seeded the database");
   } catch (error) {

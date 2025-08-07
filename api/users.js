@@ -1,6 +1,6 @@
 const express = require("express")
 const router = express.Router();
-const { User } = require("../database"); 
+const { User, Echoes } = require("../database"); 
 
 router.get("/", async (req, res) => {
     try {
@@ -25,4 +25,16 @@ router.get("/:id", async (req, res) => {
     }
 });
 
+router.get("/:id/echoes", async (req, res) => {
+    try {
+        const user_echoes = await Echoes.findAll({
+            where: {
+                user_id: req.params.id 
+            }
+        });
+        res.status(200).json(user_echoes);
+    } catch (err) {
+        res.status(500).json({error: "Failed to fetch user echoes"});
+    }
+});
 module.exports = router; 
