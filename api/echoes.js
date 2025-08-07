@@ -1,6 +1,6 @@
 const express = require("express")
 const router = express.Router();
-const { Echoes } = require("../database"); 
+const { Echoes, Echo_recipients } = require("../database"); 
 const { authenticateJWT } = require("../auth"); 
 
 router.get("/", async (req, res) => {
@@ -12,11 +12,32 @@ router.get("/", async (req, res) => {
     }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", authenticateJWT, async (req, res) => {
     try {
-        const echo = await Echoes.findByPk(req.params.id, {});
-        res.json(echo);
+        const user_id = req.user.id;
+        const echo = await Echoes.findByPk(req.params.id);
+        const echo_date = new Date(echo.unlock_datetime);
+
+        if (!echo) {
+            return res.status(404).json({error: "Echo not found"});
+        }
+
+        if (echo.recipient_type === "public") {
+            if (echo.is_unlocked) {
+                return res.json(echo);
+            } else {
+                return res.status(403).json({locked: "Echo is locked"});
+            }
+        }
+
+        if (echo.recipient_type === "self" && echo.user_id === user_id) {
+            return res.json(echo);
+        }
+
+        res.status(403).json({no_access: "You cannot access this echo"});
+
     } catch (err) {
+        console.log(err);
         res.status(500).json({ error: "Failed to fetch echo" })
     }
 });
@@ -44,6 +65,7 @@ router.post("/", authenticateJWT, async (req, res) => {
 
         // creating new echo 
         const newEcho = await Echoes.create({
+            user_id: sender_id,
             type, 
             text,
             unlock_datetime, 
