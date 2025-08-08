@@ -78,9 +78,10 @@ const seed = async () => {
       }
     ]);
 
-  console.log(`📨 Created ${echoRecipients.length} echo_recipients for custom echo`);
+    console.log(`📨 Created ${echoRecipients.length} echo_recipients for custom echo`);
 
     console.log("🌱 Seeded the database");
+    
   } catch (error) {
     console.error("Error seeding database:", error);
     if (error.message.includes("does not exist")) {

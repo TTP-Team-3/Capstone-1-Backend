@@ -44,6 +44,8 @@ router.get("/:id", authenticateJWT, async (req, res) => {
         if (echo.recipient_type === "public") {
             if (echo.is_unlocked) {
                 return res.json(echo);
+            } else if (isCreator) {
+                return res.json(echo);
             } else {
                 return res.status(403).json({locked: "Echo is locked"});
             }
@@ -66,9 +68,15 @@ router.get("/:id", authenticateJWT, async (req, res) => {
                 }
             });
 
-            if (isFriend && echo.is_unlocked) {
-                return res.json(echo);
-            } 
+            if (isFriend) {
+                if (echo.is_unlocked) {
+                    return res.json(echo);
+                } else {
+                    return res.status(403).json({locked:"Echo is locked"});
+                }
+            } else {
+                return res.status(403).json({not_friend: "This echo is only accessible to friends of echo creator"});
+            }
         }
 
         // if echo is custom and for specific users 
@@ -76,12 +84,18 @@ router.get("/:id", authenticateJWT, async (req, res) => {
             if (isCreator) {
                 return res.json(echo);
             }
-
             const isRecipient = await Echo_recipients.findOne({
                 where: {
-
+                    echo_id: echo.id,
+                    recipient_id: user_id,
                 }
             })
+
+            if (isRecipient && echo.is_unlocked) {
+                return res.json(echo);
+            } else if (isRecipient && !echo.is_unlocked) {
+                return res.status(403).json({locked: "Echo is locked"});
+            }
         }
 
         // default: no access
