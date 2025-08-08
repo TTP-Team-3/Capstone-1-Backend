@@ -1,7 +1,6 @@
 const db = require("./db");
 const User = require("./user");
 const Echoes = require('./echoes');
-const Echo_visibility = require('./echo_visibility');
 const Echo_recipients = require('./echo_recipients');
 const Echo_tags = require('./echo_tags');
 const Friends = require('./friends');
@@ -139,17 +138,6 @@ User.hasMany(Reports, {
   onUpdate: 'CASCADE'
 });
 
-// Echoes <> Echo_visibility (1:1)
-Echoes.hasOne(Echo_visibility, {
-  foreignKey: 'echo_id', 
-  onDelete: 'CASCADE',
-  onUpdate: 'CASCADE'
-});
-Echo_visibility.belongsTo(Echoes, {
-  foreignKey: 'echo_id', 
-  onDelete: 'CASCADE',
-  onUpdate: 'CASCADE'
-});
 
 // Echoes <> Tags (many to many through echo_tags)
 Echoes.belongsToMany(Tags, {
@@ -177,7 +165,7 @@ Echoes.belongsToMany(User, {
   as: 'recipients', 
   onDelete: 'CASCADE',
   onUpdate: 'CASCADE'
-});
+});  
 User.belongsToMany(Echoes, {
   through: Echo_recipients, 
   foreignKey: 'recipient_id',
@@ -209,7 +197,6 @@ module.exports = {
   db,
   User,
   Echoes,
-  Echo_visibility,
   Echo_recipients,
   Echo_tags,
   Friends,

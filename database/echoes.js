@@ -18,7 +18,7 @@ const Echoes = db.define("echoes", {
  },
 
  recipient_type: {
-    type: DataTypes.ENUM("self", "friend", "public"),
+    type: DataTypes.ENUM("self", "friend", "public", "custom"),
     allowNull: false,
  },
 
