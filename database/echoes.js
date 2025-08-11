@@ -8,6 +8,11 @@ const Echoes = db.define("echoes", {
     primaryKey: true, 
   },
 
+  echo_name: {
+   type: DataTypes.TEXT, 
+   allowNull: false
+  },
+
   user_id: {
     type: DataTypes.INTEGER,
     allowNull: false, 
@@ -23,7 +28,7 @@ const Echoes = db.define("echoes", {
  },
 
  text: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: true, 
  },
 
@@ -44,6 +49,12 @@ const Echoes = db.define("echoes", {
     type: DataTypes.BOOLEAN, 
     defaultValue: false, 
     allowNull: false,
+ },
+
+ is_saved: {
+   type: DataTypes.BOOLEAN,
+   defaultValue: false,
+   allowNull: false
  },
 
  show_sender_name: {
