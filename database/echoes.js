@@ -10,7 +10,7 @@ const Echoes = db.define("echoes", {
 
   echo_name: {
    type: DataTypes.TEXT, 
-   allowNull: false
+   allowNull: true
   },
 
   user_id: {
@@ -59,8 +59,24 @@ const Echoes = db.define("echoes", {
 
  show_sender_name: {
     type: DataTypes.BOOLEAN,
-    defaultValue: false, 
+    defaultValue: true, 
     allowNull: false, 
+ }, 
+
+ location_locked: {
+   type: DataTypes.BOOLEAN, 
+   allowNull: false,
+   defaultValue: false,  
+ },
+
+ lat: {
+   type: DataTypes.DECIMAL(9, 6),
+   allowNull: true
+ },
+
+ lng: {
+   type: DataTypes.DECIMAL(9, 6),
+   allowNull: true
  }
 
 }, {

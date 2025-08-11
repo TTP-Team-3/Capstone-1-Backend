@@ -17,43 +17,73 @@ const seed = async () => {
     console.log(`👤 Created ${users.length} users`);
 
     const echoes = await Echoes.bulkCreate([
-      {
-        user_id: users[0].id, // Jeramy 
-        recipient_type: "self",
-        text: "This is Jeramys private echo",
-        unlock_datetime: new Date(Date.now() + 1000 * 60 * 60), // unlock in 1 hour
-        show_sender_name: true
-      },
-      {
-        user_id: users[1].id, // Aiyanna
-        recipient_type: "friend",
-        text: "Aiyannas echo to friends",
-        unlock_datetime: new Date(Date.now() - 1000 * 60 * 60), // already unlocked
-        show_sender_name: false
-      },
-      {
-        user_id: users[2].id, // Emmanuel
-        recipient_type: "public",
-        text: "Public echo by Emmanuel",
-        unlock_datetime: new Date(),
-        is_archived: true,
-        show_sender_name: true
-      },
-      {
-        user_id: users[3].id, // Olivia
-        recipient_type: "public",
-        text: "Olivias echo is for everyone!",
-        unlock_datetime: new Date(Date.now() + 1000 * 60 * 60 * 24), // unlock in 1 day
-        show_sender_name: true
-      },
-      {
-        user_id: users[0].id, // Jeramy
-        recipient_type: "custom",
-        text: "Jeramy's custom echo",
-        unlock_datetime: new Date(Date.now() + 1000 * 60 * 45), // unlock in 45 minutes
-        show_sender_name: true
-      }
-    ]);
+  {
+    echo_name: "Jeramy's Private Echo",
+    user_id: users[0].id, // Jeramy
+    recipient_type: "self",
+    text: "This is Jeramy's private echo",
+    unlock_datetime: new Date(Date.now() + 1000 * 60 * 60), // unlock in 1 hour
+    show_sender_name: true,
+    is_saved: false, // default
+    is_archived: false, // default
+    location_locked: false, // default
+    lat: null,
+    lng: null
+  },
+  {
+    echo_name: "Aiyanna's Friends Echo",
+    user_id: users[1].id, // Aiyanna
+    recipient_type: "friend",
+    text: "Aiyanna's echo to friends",
+    unlock_datetime: new Date(Date.now() - 1000 * 60 * 60), // already unlocked
+    show_sender_name: false,
+    is_saved: false,
+    is_archived: false,
+    location_locked: false,
+    lat: null,
+    lng: null
+  },
+  {
+    echo_name: "Public Echo by Emmanuel",
+    user_id: users[2].id, // Emmanuel
+    recipient_type: "public",
+    text: "Public echo by Emmanuel",
+    unlock_datetime: new Date(),
+    is_archived: true,
+    is_saved: false,
+    show_sender_name: true,
+    location_locked: false,
+    lat: null,
+    lng: null
+  },
+  {
+    echo_name: "Olivia's Public Echo",
+    user_id: users[3].id, // Olivia
+    recipient_type: "public",
+    text: "Olivia's echo is for everyone!",
+    unlock_datetime: new Date(Date.now() + 1000 * 60 * 60 * 24), // unlock in 1 day
+    show_sender_name: true,
+    is_saved: false,
+    is_archived: false,
+    location_locked: false,
+    lat: null,
+    lng: null
+  },
+  {
+    echo_name: "Jeramy's Custom Echo",
+    user_id: users[0].id, // Jeramy
+    recipient_type: "custom",
+    text: "Jeramy's custom echo",
+    unlock_datetime: new Date(Date.now() + 1000 * 60 * 45), // unlock in 45 minutes
+    show_sender_name: true,
+    is_saved: false,
+    is_archived: false,
+    location_locked: false,
+    lat: null,
+    lng: null
+  }
+]);
+
 
     console.log(`📣 Created ${echoes.length} echoes`);
 
@@ -81,7 +111,7 @@ const seed = async () => {
     console.log(`📨 Created ${echoRecipients.length} echo_recipients for custom echo`);
 
     console.log("🌱 Seeded the database");
-    
+
   } catch (error) {
     console.error("Error seeding database:", error);
     if (error.message.includes("does not exist")) {
