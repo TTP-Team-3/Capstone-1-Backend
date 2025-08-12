@@ -170,6 +170,7 @@ router.post("/", authenticateJWT, async (req, res) => {
     }
 });
 
+// arching or unarchiving an echo 
 router.patch("/:id/archive", authenticateJWT, async (req, res) => {
     try {
         const user_id = req.user.id;
@@ -198,6 +199,7 @@ router.patch("/:id/archive", authenticateJWT, async (req, res) => {
     }
 });
 
+// unlocking an echo 
 router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
     try {
         const user_id = req.user.id; 
@@ -241,6 +243,7 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
     }
 });
 
+// deleting an echo 
 router.delete("/:id", authenticateJWT, async (req, res) => {
     try {
         const user_id = req.user.id; 
