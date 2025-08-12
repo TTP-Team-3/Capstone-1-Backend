@@ -38,11 +38,9 @@ const Echoes = db.define("echoes", {
  },
 
  is_unlocked: {
-    type: DataTypes.VIRTUAL,
-    get() {
-        const now = new Date();
-        return now >= this.unlock_datetime; 
-    }
+    type: DataTypes.BOOLEAN,
+    defaultValue: false, 
+    allowNull: false
  },
 
  is_archived: {
