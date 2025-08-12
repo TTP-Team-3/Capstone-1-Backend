@@ -1,7 +1,8 @@
 const express = require("express")
 const router = express.Router();
-const { User, Friends} = require("../database"); 
+const { Friends} = require("../database"); 
 const { authenticateJWT } = require("../auth");
+const { Op } = require("sequelize");
 
 router.get("/", authenticateJWT, async (req, res) => {
     try {
@@ -19,8 +20,59 @@ router.post("/", authenticateJWT, async (req, res) => {
     try {
         const user_id = req.user.id; 
         const { friend_id } = req.body;
-    } catch (err) {
 
+        // cannot send friend requests to self 
+        if (user_id === friend_id) {
+            return res.status(400).json({error: "Cannot send a friend request to self"});
+        }
+
+        // auto-accept if reverse pending request exists 
+        const reverseRequest = await Friends.findOne({
+            where: { user_id: friend_id, friend_id: user_id, status: "pending"}
+        });
+        
+        if (reverseRequest) {
+            reverseRequest.status = "accepted";
+            await reverseRequest.save();
+            return res.status(200).json(reverseRequest);
+        }
+
+        // checking if already friends 
+        const isFriend = await Friends.findOne({
+            where: {
+                [Op.or]: [
+                    {user_id, friend_id}, 
+                    {user_id: friend_id, friend_id: user_id}
+                    ],
+                    status: "accepted"
+            }
+        });
+
+        if (isFriend) {
+            return res.status(403).json({friends: "Already friends"});
+        }
+
+        // check if there's already an existing request 
+        const requestExists = await Friends.findOne({
+            where: {
+                [Op.or]: [
+                    {user_id, friend_id},
+                    {user_id: friend_id, friend_id: user_id}
+                ],
+                status: "pending"
+            }
+        });
+
+        if (requestExists) {
+            return res.status(403).json({request: "Friend request sent already"});
+        }
+
+        // create pending request  
+        const newFriendRequest = await Friends.create({ user_id, friend_id});
+        res.status(201).json(newFriendRequest);
+    } catch (err) {
+        console.log(err);
+        return res.status(500).json({error: "Failed to send friend request"});
     }
 });
 
