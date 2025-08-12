@@ -243,9 +243,29 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
 
 router.delete("/:id", authenticateJWT, async (req, res) => {
     try {
+        const user_id = req.user.id; 
+        const echo = await Echoes.findByPk(req.params.id); 
 
+        // check if echo exists 
+        if (!echo) {
+            return res.status(404).json({error: "Echo not found."}); 
+        }
+
+        // check ownership 
+        if (user_id !== echo.user_id) {
+            return res.status(403).json({ error: "You are not the owner of this echo."});
+        }
+
+        // delete the echo 
+        await echo.destroy();
+
+        return res.status(200).json({
+            message: "Echo deleted successfully", 
+            id: echo.id
+        });
     } catch (err) {
-
+        console.error(err);
+        return res.status(500).json({error: "Error deleting this echo"});
     }
 });
 
