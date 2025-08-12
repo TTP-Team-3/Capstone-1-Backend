@@ -3,6 +3,7 @@ const router = express.Router();
 const { Echoes, Echo_recipients, Friends } = require("../database"); 
 const { authenticateJWT } = require("../auth"); 
 const { Op } = require("sequelize");
+const { response } = require("../app");
 
 // route for fetching all echoes 
 router.get("/", async (req, res) => {
@@ -197,11 +198,46 @@ router.patch("/:id/archive", authenticateJWT, async (req, res) => {
     }
 });
 
-router.patch("/:id/unlock", async (req, res) => {
+router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
     try {
+        const user_id = req.user.id; 
+        const echo = await Echoes.findByPk(req.params.id);
+
+        // check if echo exists 
+        if (!echo) {
+            return res.status(404).json({error: "Echo not found."});
+        }
+
+        // check if user is owner
+        if (user_id !== echo.user_id) {
+            return res.status(403).json({error: "You cannot access this echo."});
+        }
+
+        // enforce unlock date 
+        if (new Date() < new Date(echo.unlock_datetime)) {
+            return res.status(403).json({ error: "This echo is locked until its unlock date."});
+        }
+
+        // already unlocked 
+        if (echo.is_unlocked) {
+            return res.status(200).json({
+                message: "Echo is already unlocked.", 
+                echo 
+            })
+        } 
+        
+        // Unlock 
+        echo.is_unlocked = true; 
+        await echo.save(); 
+
+        return res.status(200).json({
+            message: "Echo unlocked",
+            echo
+        });
 
     } catch (err) {
-
+        console.error(err);
+        res.status(500).json({error: "Error unlocking this echo"});
     }
 });
 
