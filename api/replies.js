@@ -47,8 +47,22 @@ router.post("/echoes/:id/reply", authenticateJWT, async(req, res) => {
     }
 });
 
-router.get("echoes/:id/replies", async (req, res) => {
+router.get("/echoes/:id/replies", async (req, res) => {
+    try {
+        const echoId = parseInt(req.params.id, 10);
 
+        const echoReplies = await Replies.findAll({
+            where: {
+                echo_id: echoId
+            }
+        });
+
+        return res.json(echoReplies);
+
+    } catch (err) {
+        console.error(err);   
+        return res.status(500).json({error: "Error fetching echo replies."});
+    }
 }); 
 
 router.delete("/echoes/:echo_id/replies/:reply_id", authenticateJWT, async (req, res) => {
