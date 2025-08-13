@@ -14,7 +14,7 @@ router.get("/", authenticateJWT, async (req, res) => {
                     {friend_id: userId}
                 ],
                 status: {
-                    [Op.or]: ["accepted", "pending"]
+                    [Op.or]: ["accepted", "pending", "blocked"]
                 }
             }
         });
