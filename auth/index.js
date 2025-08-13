@@ -76,7 +76,7 @@ router.post("/auth0", async (req, res) => {
         email: user.email,
       },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     res.cookie("token", token, {
@@ -137,7 +137,7 @@ router.post("/signup", async (req, res) => {
         email: user.email,
       },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     res.cookie("token", token, {
@@ -188,7 +188,7 @@ router.post("/login", async (req, res) => {
         email: user.email,
       },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "24h" },
     );
 
     res.cookie("token", token, {
