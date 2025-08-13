@@ -4,7 +4,7 @@ const { Replies, Echoes } = require("../database");
 const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
 
-router.post("/echoes/:id/reply", authenticateJWT, async(req, res) => {
+router.post("/echoes/:id", authenticateJWT, async(req, res) => {
     try {
         const userId = req.user.id; 
         const echoId = parseInt(req.params.id, 10);
@@ -46,7 +46,7 @@ router.post("/echoes/:id/reply", authenticateJWT, async(req, res) => {
     }
 });
 
-router.get("/echoes/:id/replies", async (req, res) => {
+router.get("/echoes/:id", async (req, res) => {
     try {
         const echoId = parseInt(req.params.id, 10);
 
@@ -64,7 +64,7 @@ router.get("/echoes/:id/replies", async (req, res) => {
     }
 }); 
 
-router.delete("/echoes/:echo_id/replies/:reply_id", authenticateJWT, async (req, res) => {
+router.delete("/:reply_id/echoes/:echo_id", authenticateJWT, async (req, res) => {
     try {
         const userId = req.user.id; 
         const echoId = parseInt(req.params.echo_id, 10); 
@@ -104,3 +104,4 @@ router.delete("/echoes/:echo_id/replies/:reply_id", authenticateJWT, async (req,
     }   
 });
 
+module.exports = router; 
