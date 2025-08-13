@@ -1,15 +1,22 @@
 const express = require("express")
 const router = express.Router();
-const { Friends} = require("../database"); 
+const { Friends } = require("../database"); 
 const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
 
 router.get("/", authenticateJWT, async (req, res) => {
     try {
-        const user_id = req.user.id;
+        const userId = req.user.id;
         const friends = await Friends.findAll({
-            where: {user_id: user_id, status: "accepted"},
+            where: {
+                [Op.or]: [
+                    {user_id: userId},
+                    {friend_id: userId}
+                ],
+                status: "accepted"
+            }
         });
+
         res.json(friends);
     } catch (err) {
         res.status(500).json({ error: "Failed to fetch friends" }); 
@@ -49,7 +56,7 @@ router.post("/", authenticateJWT, async (req, res) => {
         });
 
         if (isFriend) {
-            return res.status(403).json({friends: "Already friends"});
+            return res.status(403).json({ message: "Already friends"});
         }
 
         // check if there's already an existing request 
@@ -64,7 +71,7 @@ router.post("/", authenticateJWT, async (req, res) => {
         });
 
         if (requestExists) {
-            return res.status(403).json({request: "Friend request sent already"});
+            return res.status(403).json({message: "Friend request sent already"});
         }
 
         // create pending request  
@@ -84,7 +91,7 @@ router.patch("/:id/accept", authenticateJWT, async (req, res) => {
     }
 });
 
-router.patch("/:id/accept", authenticateJWT, async (req, res) => {
+router.patch("/:id/block", authenticateJWT, async (req, res) => {
     try {
     
     } catch (err) {
@@ -101,6 +108,8 @@ router.delete("/:id", authenticateJWT, async (req, res) => {
 });
 
 module.exports = router; 
+
+
 
 
 
