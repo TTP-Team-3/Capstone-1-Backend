@@ -1,9 +1,33 @@
+require("dotenv").config();
 const express = require("express");
 const router = express.Router();
 const { Echoes, Echo_recipients, Friends } = require("../database");
 const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
 const { response } = require("../app");
+const multer = require("multer");
+const crypto = require("crypto");
+const {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectsCommand,
+} = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+const bucketName = process.env.BUCKET_NAME;
+const bucketRegion = process.env.BUCKET_REGION;
+const accessKey = process.env.ACCESS_KEY;
+const secretAccessKey = process.env.SECRET_ACCESS_KEY;
+
+const s3 = new S3Client({
+  credentials: {
+    accessKeyId: accessKey,
+    secretAccessKey: secretAccessKey,
+  },
+  region: bucketRegion,
+});
 
 // route for fetching all echoes
 router.get("/", async (req, res) => {
@@ -76,12 +100,9 @@ router.get("/:id", authenticateJWT, async (req, res) => {
           return res.status(403).json({ locked: "Echo is locked" });
         }
       } else {
-        return res
-          .status(403)
-          .json({
-            not_friend:
-              "This echo is only accessible to friends of echo creator",
-          });
+        return res.status(403).json({
+          not_friend: "This echo is only accessible to friends of echo creator",
+        });
       }
     }
 
@@ -113,81 +134,102 @@ router.get("/:id", authenticateJWT, async (req, res) => {
 });
 
 // creating an echo
-router.post("/", authenticateJWT, async (req, res) => {
-  try {
-    const {
-      echo_name,
-      recipient_type,
-      text,
-      unlock_datetime,
-      show_sender_name,
-      lat,
-      lng,
-      customRecipients,
-    } = req.body;
-    const sender_id = req.user.id;
+router.post(
+  "/",
+  [authenticateJWT, upload.array("media", 10)],
+  async (req, res) => {
+    try {
+      const {
+        echo_name,
+        recipient_type,
+        text,
+        unlock_datetime,
+        show_sender_name,
+        lat,
+        lng,
+        customRecipients,
+      } = req.body;
+      const sender_id = req.user.id;
 
-    // checking if any required fields are missing
-    if (!sender_id || !recipient_type || !unlock_datetime) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    // checking if unlock_datetime is in the future
-    const unlockTime = new Date(unlock_datetime);
-
-    if (isNaN(unlockTime.getTime())) {
-      return res.status(400).json({ error: "Invalid unlock_datetime format" });
-    }
-
-    if (unlockTime < new Date()) {
-      return res
-        .status(400)
-        .json({ error: "unlock_datetime must be in the future" });
-    }
-
-    // validating customRecipients array if recipient_type is 'custom'
-    if (recipient_type === "custom") {
-      if (!Array.isArray(customRecipients) || customRecipients.length === 0) {
-        return res
-          .status(400)
-          .json({ error: "Custom recipient list must be a non-empty array." });
+      // checking if any required fields are missing
+      if (!sender_id || !recipient_type || !unlock_datetime) {
+        return res.status(400).json({ error: "Missing required fields" });
       }
 
-      // prevent sending to self
-      if (customRecipients.includes(sender_id)) {
+      // checking if unlock_datetime is in the future
+      const unlockTime = new Date(unlock_datetime);
+
+      if (isNaN(unlockTime.getTime())) {
         return res
           .status(400)
-          .json({ error: "Cannot send custom echoes to yourself." });
+          .json({ error: "Invalid unlock_datetime format" });
       }
+
+      if (unlockTime < new Date()) {
+        return res
+          .status(400)
+          .json({ error: "unlock_datetime must be in the future" });
+      }
+
+      // validating customRecipients array if recipient_type is 'custom'
+      if (recipient_type === "custom") {
+        if (!Array.isArray(customRecipients) || customRecipients.length === 0) {
+          return res.status(400).json({
+            error: "Custom recipient list must be a non-empty array.",
+          });
+        }
+
+        // prevent sending to self
+        if (customRecipients.includes(sender_id)) {
+          return res
+            .status(400)
+            .json({ error: "Cannot send custom echoes to yourself." });
+        }
+      }
+
+      const image_uuids = [];
+      for (let i = 0; i < req.files.length; i++) {
+        const uuid = crypto.randomUUID();
+        const params = {
+          Bucket: bucketName,
+          Key: uuid,
+          Body: req.files[i].buffer,
+          ContentType: req.files[i].mimetype,
+        };
+        const command = new PutObjectCommand(params);
+        await s3.send(command);
+        image_uuids.push(uuid);
+      }
+
+      // creating new echo
+      const newEcho = await Echoes.create({
+        echo_name,
+        user_id: sender_id,
+        recipient_type,
+        text,
+        unlock_datetime,
+        show_sender_name,
+        lat,
+        lng,
+        image_uuids,
+      });
+
+      // add custom recipients if custom
+      if (recipient_type === "custom") {
+        const echoRecipients = customRecipients.map((recipient_id) => ({
+          echo_id: newEcho.id,
+          recipient_id,
+        }));
+
+        await Echo_recipients.bulkCreate(echoRecipients);
+      }
+
+      res.status(201).json(newEcho);
+    } catch (err) {
+      res.status(500).json({ error: "Failed to create echo" });
     }
-
-    // creating new echo
-    const newEcho = await Echoes.create({
-      echo_name,
-      user_id: sender_id,
-      recipient_type,
-      text,
-      unlock_datetime,
-      show_sender_name,
-      lat,
-      lng,
-    });
-
-    // add custom recipients if custom
-    if (recipient_type === "custom") {
-      const echoRecipients = customRecipients.map((recipient_id) => ({
-        echo_id: newEcho.id,
-        recipient_id,
-      }));
-
-      await Echo_recipients.bulkCreate(echoRecipients);
-    }
-
-    res.status(201).json(newEcho);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to create echo" });
-  }
-});
+  },
+);
 
 // arching or unarchiving an echo
 router.patch("/:id/archive", authenticateJWT, async (req, res) => {
