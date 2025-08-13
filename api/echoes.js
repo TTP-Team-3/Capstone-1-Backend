@@ -56,6 +56,18 @@ router.get("/:id", authenticateJWT, async (req, res) => {
 
     const isCreator = echo.user_id === user_id;
 
+    const signed_urls = [];
+    for (let i = 0; i < echo.image_uuids.length; i++) {
+      const objectParams = {
+        Bucket: bucketName,
+        Key: echo.image_uuids[i],
+      };
+      const command = new GetObjectCommand(objectParams);
+      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+      signed_urls.push(url);
+    }
+    echo.signed_urls = signed_urls;
+
     // If echo is only visible to self and the user is the creator
     if (echo.recipient_type === "self") {
       if (isCreator) {

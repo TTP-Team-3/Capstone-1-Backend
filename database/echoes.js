@@ -35,6 +35,12 @@ const Echoes = db.define(
       defaultValue: [],
     },
 
+    signed_urls: {
+      type: DataTypes.ARRAY(DataTypes.TEXT("long")),
+      allowNull: false,
+      defaultValue: [],
+    },
+
     text: {
       type: DataTypes.TEXT,
       allowNull: true,
