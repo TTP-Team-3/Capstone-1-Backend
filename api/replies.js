@@ -3,7 +3,6 @@ const router = express.Router();
 const { Replies, Echoes } = require("../database");
 const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
-const { rawListeners } = require("../app");
 
 router.post("/echoes/:id/reply", authenticateJWT, async(req, res) => {
     try {

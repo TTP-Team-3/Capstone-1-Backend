@@ -1,5 +1,5 @@
 const db = require("./db");
-const { User, Echoes, Friends, Echo_recipients } = require("./index");
+const { User, Echoes, Friends, Echo_recipients, Replies } = require("./index");
 
 
 const seed = async () => {
@@ -109,6 +109,17 @@ const seed = async () => {
     ]);
 
     console.log(`📨 Created ${echoRecipients.length} echo_recipients for custom echo`);
+
+    // replies
+    const replies = await Replies.bulkCreate([
+      { echo_id: echoes[0].id, user_id: users[1].id, message: "Hey Jeramy, nice private echo!" },
+      { echo_id: echoes[0].id, user_id: users[2].id, message: "Agreed, this is cool." },
+      { echo_id: echoes[1].id, user_id: users[0].id, message: "Glad to be your friend, Aiyanna!" },
+      { echo_id: echoes[2].id, user_id: users[3].id, message: "Public echoes are great!" },
+      // Nested reply (replying to the first reply above)
+      { echo_id: echoes[0].id, user_id: users[0].id, parent_reply_id: 1, message: "Thanks, Aiyanna!" }
+    ]);
+    console.log(`💬 Created ${replies.length} replies`);
 
     console.log("🌱 Seeded the database");
 
