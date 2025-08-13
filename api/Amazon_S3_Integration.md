@@ -8,15 +8,13 @@ Below is a step by step breakdown of the process, inspired by [this video](https
 
 If you just want to setup on your local machine S3 access, go to [Bucket Access](#bucket-access) and copy and paste the `.env` variables into your `.env` file. The `ACCESS_KEY` and `SECRET_ACCESS_KEY` and `BUCKET_NAME` are not in this file for _obvious_ reasons(hiding bucket name might just me being paranoid). If the `SECRET_ACCESS_KEY` ends up getting _lost_, then I will have to make a new **IAM** user, so please let me know.
 
-Next, run npm install if the routes are already setup, and you haven't done this setup before. This way you install the packages in [Express Server File Handling](#express-server-file-handling) and [Amazon S3 SDK](#amazon-s3-sdk).
+Next install the npm packages if you haven't done this setup before. This way you install the packages in [Express Server File Handling](#express-server-file-handling) and [Amazon S3 SDK](#amazon-s3-sdk).
 
 ```bash
 npm install
 ```
 
-If for some reason the relevant packages are not in the `package.json`, then proceed to [Express Server File Handling](#express-server-file-handling) and [Amazon S3 SDK](#amazon-s3-sdk) and follow those install steps.
-
-Thats it! Assuming the routes have been setup, you can now run requests to the Amazon S3 bucket, and our PostgreSQL DB. If you run into any issues, please reach out to me @EmmanuelR21.
+Thats it! You can now run requests to the Amazon S3 bucket, and our PostgreSQL DB. If you run into any issues, please reach out to me @EmmanuelR21.
 
 ## Bucket Access
 
@@ -48,13 +46,13 @@ Next put in some of these important variables. **NOTE:** that the `crypto` varia
 ```javascript
 const multer = require("multer");
 const crypto = require("crypto");
-const sharp = require("sharp"); // Only needed if we want to create a resized image, for example to put images into portrait mode (not stretching the image, but adding black bars to fill the gaps).
+const sharp = require("sharp"); // To create a resized image, for example to put images into portrait mode.
 
-const storage = multer.memoryStorage(); //This designates the memory to store the media, instead of in disk storage
-const upload = multer({ storage: storage }); //Upload function to be used later
+const storage = multer.memoryStorage(); //This designates the server to store the media in memory, instead of on disk.
+const upload = multer({ storage: storage });
 ```
 
-After creating our `upload` variable, we will use it later in our route as a middleware.
+Our `upload` variable will be used later in our route as a middleware.
 
 ## Amazon S3 SDK
 
@@ -109,37 +107,41 @@ Its important I clarify a few things:
 - upload.array() will take an array of "files" named "media". The name "media" can be literally anything, just depends on what you name the array of files being sent from the client.
 - upload.array() will store the file buffers in req.files when it is done.
 */
-router.post("/", upload.array("media", 10), async (req, res) => {
-  // We use UUID's to prevent file name collision, which will overwrite one file over the other. We will also use it to retrieve the media later so we store it in our Postgres DB.
-  const imageIds = [];
-  // S3 does not allow you to upload several files at once, so we have to loop
-  for (let i = 0; i < req.files.length; i++) {
-    const buffer = await sharp(req.files[i].buffer)
-      .resize({ height: 1920, width: 1080, fit: "cover" })
-      .toBuffer(); //This is if you want to resize an image to be in portrait mode. The image wont get affected, but essentially black bars will fill the gaps.
-    const uniqueImgId = crypto.randomUUID();
-    const params = {
-      Bucket: bucketName,
-      Key: uniqueImgId,
-      Body: req.files[i].buffer,
-      ContentType: req.files[i].mimetype,
-    };
+router.post(
+  "/",
+  [authenticateJWT, upload.array("media", 10)],
+  async (req, res) => {
+    // We use UUID's to prevent file name collision, which will overwrite one file over the other. We will also use it to retrieve the media later so we store it in our Postgres DB.
+    const image_uuids = [];
+    // S3 does not allow you to upload several files at once, so we have to loop
+    for (let i = 0; i < req.files.length; i++) {
+      const buffer = await sharp(req.files[i].buffer)
+        .resize({ height: 1920, width: 1080, fit: "contain" })
+        .toBuffer(); //This is for resizing an image to portrait mode. The image wont get affected, but black bars will fill the gaps.
+      const uniqueImgId = crypto.randomUUID();
+      const params = {
+        Bucket: bucketName,
+        Key: uniqueImgId,
+        Body: buffer, //This is strictly for image resizing, if uploading videos you would have to use req.files[i].buffer and or use another package to resize the video.
+        ContentType: req.files[i].mimetype,
+      };
 
-    const command = new PutObjectCommand(params);
-    // The following uses the s3Client variable we made earlier, to store to the AWS DB bucket
-    await s3.send(command);
-    // Upon successful completion we also save the UUID in our array
-    imageIds.push(uniqueImgId);
-  }
+      const command = new PutObjectCommand(params);
+      // The following uses the s3Client variable we made earlier, to store to the AWS DB bucket
+      await s3.send(command);
+      // Upon successful completion we also save the UUID in our array
+      image_uuids.push(uniqueImgId);
+    }
+    await Echoes.create({
+      /*
+    Include here all relevant info for creating the echo
+    */
+      image_uuids,
+    });
 
-  // After uploading to S3, we now post to our DB, and instead of uploading media, we will upload the array of UUID's.
-
-  /*
-    Sequelize post to DB code goes here
-  */
-
-  res.send(post);
-});
+    res.send(post);
+  },
+);
 ```
 
 ### Getting from our Bucket
