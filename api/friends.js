@@ -115,7 +115,7 @@ router.patch("/:id/accept", authenticateJWT, async (req, res) => {
 
         return res.status(200).json({
             message: "Friend request accepted", 
-            buddingFriendship: friendRequest
+            friendRequest
         });
 
     } catch (err) {
@@ -126,9 +126,35 @@ router.patch("/:id/accept", authenticateJWT, async (req, res) => {
 
 router.patch("/:id/block", authenticateJWT, async (req, res) => {
     try {
-    
+        const userId = req.user.id; 
+        const friendship = await Friends.findByPk(req.params.id); 
+
+        if (!friendship) {
+            return res.status(404).json({error: "Friendship not found."});
+        }
+
+        // Ensure current user is the receiver 
+        if (friendship.friend_id !== userId) {
+            return res.status(403).json({ error: "You are not the recipient of this friend request." });
+        }
+
+        // Checking if user is blocked already 
+        if (friendship.status === "blocked") {
+            return res.status(400).json({ error: "User already blocked." })
+        }
+
+        // Block user from sending friend requests
+        friendship.status = "blocked"; 
+        await friendship.save(); 
+
+        return res.status(200).json({
+            message: "User successfully blocked", 
+            friendStatus: friendship
+        });
+
     } catch (err) {
-    
+        console.error(err);
+        return res.status(500).json({error: "Error blocking user."});
     }
 });
 
