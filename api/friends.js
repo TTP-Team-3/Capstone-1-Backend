@@ -160,9 +160,29 @@ router.patch("/:id/block", authenticateJWT, async (req, res) => {
 
 router.delete("/:id", authenticateJWT, async (req, res) => {
     try {
-    
+        const userId = req.user.id; 
+        const friendship = await Friends.findByPk(req.params.id);
+
+        // friendship not found
+        if (!friendship) {
+            return res.status(404).json({error: "Friendship not found."});
+        }
+
+        // Ensure current user is in the friendship pair  
+        if (friendship.friend_id !== userId && friendship.user_id !== userId) {
+            return res.status(403).json({ error: "You are not a part of this friendship." });
+        }
+        
+       await friendship.destroy();
+
+       return res.status(200).json({
+        message: "Friend or friend request removed successfully.",
+        friendship
+       });
+
     } catch (err) {
-    
+        console.error(err);
+        return res.status(500).json({error: "Error removing friend or friend request"});
     }
 });
 
