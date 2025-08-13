@@ -147,23 +147,20 @@ router.post(
 ### Getting from our Bucket
 
 ```javascript
-router.get("/:id", async (req, res) => {
-  // Here sequelize will get our echo by ID:
-  const echoId = req.params.id;
+router.get("/:id", authenticateJWT, async (req, res) => {
   const echo = await Echo.getByPk(echoId);
-  // Attaches array of "signed URL's" to the Post data. Not entirely sure yet if this adds to the DB table, need to test.
-  echo.mediaUrls = [];
-  // Post.uuids will be the array grabbed by echo id.
-  for (let i = 0; i < echo.uuids.length; i++) {
+  const signed_urls = [];
+  for (let i = 0; i < echo.image_uuids.length; i++) {
     const objectParams = {
       Bucket: bucketName,
-      Key: echo.uuids[i],
+      Key: echo.image_uuids[i],
     };
     const command = new GetObjectCommand(objectParams);
     const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-    echo.mediaUrls.push(url);
+    signed_urls.push(url);
   }
-  // The Post now has the array of signed URLs when sent back to our client.
+  // I prefer this method as opposed to using Sequelize's "update" method, as the AWS signed url is rather long, and might throw an error to the server (although it will still attach itself properly)
+  echo.signed_urls = signed_urls;
   res.send(echo);
 });
 ```
