@@ -3,7 +3,6 @@ const router = express.Router();
 const { Echoes, Echo_recipients, Friends } = require("../database"); 
 const { authenticateJWT } = require("../auth"); 
 const { Op } = require("sequelize");
-const { response } = require("../app");
 
 // route for fetching all echoes 
 router.get("/", async (req, res) => {
@@ -109,7 +108,7 @@ router.get("/:id", authenticateJWT, async (req, res) => {
 });
 
 // creating an echo 
-router.post("/", authenticateJWT, async (req, res) => {
+router.post("/", authenticateJWT, async (req, res) => { 
     try {
         const { echo_name, recipient_type, text, unlock_datetime, show_sender_name, lat, lng, customRecipients } = req.body;
         const sender_id = req.user.id;
