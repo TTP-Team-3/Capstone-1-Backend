@@ -1,5 +1,5 @@
 const db = require("./db");
-const { User, Echoes, Friends, Echo_recipients, Replies, Reactions } = require("./index");
+const { User, Echoes, Friends, Echo_recipients, Replies, Reactions, Tags } = require("./index");
 
 
 const seed = async () => {
@@ -146,6 +146,19 @@ const seed = async () => {
   ]);
 
   console.log(`😎 Created ${reactions.length} reactions`);
+
+  const tags = await Tags.bulkCreate([
+    { name: 'funny' },
+    { name: 'inspirational' },
+    { name: 'personal' },
+    { name: 'friends' },
+    { name: 'public' },
+    { name: 'locked' },
+    { name: 'announcement' },
+    { name: 'random' }
+  ]);
+
+  console.log(`🏷️ Created ${tags.length} tags`);
 
   console.log("🌱 Seeded the database");
 
