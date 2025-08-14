@@ -67,20 +67,29 @@ router.post("/echoes/:id", authenticateJWT, async(req, res) => {
 
 router.get("/echoes/:id", async (req, res) => {
     try {
-       
+        const echoId = parseInt(req.params.id, 10);
 
+        // validate echoId 
+        if (isNaN(echoId)) {
+            return res.status(400).json({error: "Invalid echo ID."});
+        }
+
+        // check if echo exists 
+        const echo = await Echoes.findByPk(echoId);
+        if (!echo) {
+            return res.status(404).json({error: "Echo not found."});
+        }
+
+        // find all echo reactions 
+        const echoReactions = await Reactions.findAll({
+            where: { echo_id: echoId }
+        });
+
+        return res.json(echoReactions);
     } catch (err) {
-        
+        console.error(err);
+        return res.status(500).json({error: "Error finding reactions for echo."});
     }
 }); 
-
-router.delete("/echoes/:id", authenticateJWT, async (req, res) => {
-    try {
-        
-
-    } catch (err) {
-
-    }   
-});
 
 module.exports = router; 
