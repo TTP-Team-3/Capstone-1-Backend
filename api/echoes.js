@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const router = express.Router();
-const { Echoes, Echo_recipients, Friends } = require("../database");
+const { Echoes, Echo_recipients, Friends, Media } = require("../database");
 const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
 const { response } = require("../app");
@@ -48,7 +48,9 @@ router.get("/", async (req, res) => {
 router.get("/:id", authenticateJWT, async (req, res) => {
   try {
     const user_id = req.user.id;
-    const echo = await Echoes.findByPk(req.params.id);
+    const echo = await Echoes.findByPk(req.params.id, {
+      include: { model: Media },
+    });
 
     if (!echo) {
       return res.status(404).json({ error: "Echo not found" });
@@ -56,17 +58,15 @@ router.get("/:id", authenticateJWT, async (req, res) => {
 
     const isCreator = echo.user_id === user_id;
 
-    const signed_urls = [];
-    for (let i = 0; i < echo.image_uuids.length; i++) {
+    for (let i = 0; i < echo.media.length; i++) {
       const objectParams = {
         Bucket: bucketName,
-        Key: echo.image_uuids[i],
+        Key: echo.media[i].uuid,
       };
       const command = new GetObjectCommand(objectParams);
       const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
-      signed_urls.push(url);
+      await echo.media[i].update({ signed_url: url });
     }
-    echo.signed_urls = signed_urls;
 
     // If echo is only visible to self and the user is the creator
     if (echo.recipient_type === "self") {
@@ -198,16 +198,42 @@ router.post(
             .json({ error: "Cannot send custom echoes to yourself." });
         }
       }
-
-      const image_uuids = [];
-      req.files.forEach((file) => {
-        if (file.size > Math.pow(10, 9)) {
-          res
-            .status(400)
-            .json({ error: "File size exceeds limit, no file uploaded." });
-          return;
+      function getFileType(file) {
+        const name = file.originalname.split(".")[1].toLowerCase();
+        if (
+          name === "jpg" ||
+          name === "jpeg" ||
+          name === "png" ||
+          name === "heic" ||
+          name === "heif" ||
+          name === "gif" ||
+          name === "webp"
+        ) {
+          return "image";
+        } else if (name === "mp4" || name === "mov" || name === "webm") {
+          return "video";
+        } else {
+          return "other";
         }
-      });
+      }
+
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        if (file.size > Math.pow(10, 9)) {
+          return res.status(400).json({
+            error: "File size exceeds limit of 1 GB, no file uploaded.",
+          });
+        }
+      }
+
+      // Validate file types
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        if (getFileType(file) === "other") {
+          return res.status(400).json({ error: "File type not supported!" });
+        }
+      }
+      const image_data_list = [];
       for (let i = 0; i < req.files.length; i++) {
         const uuid = crypto.randomUUID();
         const parallelUpload = new Upload({
@@ -223,7 +249,11 @@ router.post(
           console.log(progress);
         });
         await parallelUpload.done();
-        image_uuids.push(uuid);
+        image_data_list.push({
+          uuid,
+          fileType: getFileType(req.files[i]),
+          size: req.files[i].size,
+        });
       }
 
       // creating new echo
@@ -236,9 +266,16 @@ router.post(
         show_sender_name,
         lat,
         lng,
-        image_uuids,
       });
-
+      for (let i = 0; i < image_data_list.length; i++) {
+        const image_data = image_data_list[i];
+        await Media.create({
+          uuid: image_data.uuid,
+          echo_id: newEcho.id,
+          type: image_data.fileType,
+          file_size: image_data.size,
+        });
+      }
       // add custom recipients if custom
       if (recipient_type === "custom") {
         const echoRecipients = customRecipients.map((recipient_id) => ({
@@ -251,6 +288,7 @@ router.post(
 
       res.status(201).json(newEcho);
     } catch (err) {
+      console.log(err);
       res.status(500).json({ error: "Failed to create echo" });
     }
   },
@@ -336,7 +374,7 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
 router.delete("/:id", authenticateJWT, async (req, res) => {
   try {
     const user_id = req.user.id;
-    const echo = await Echoes.findByPk(req.params.id);
+    const echo = await Echoes.findByPk(req.params.id, { include: Media });
 
     // check if echo exists
     if (!echo) {
@@ -349,10 +387,11 @@ router.delete("/:id", authenticateJWT, async (req, res) => {
         .status(403)
         .json({ error: "You are not the owner of this echo." });
     }
+
     const params = {
       Bucket: bucketName,
       Delete: {
-        Objects: echo.image_uuids.map((uuid) => ({ Key: uuid })),
+        Objects: echo.media.map((media) => ({ Key: media.uuid })),
       },
     };
     const command = new DeleteObjectsCommand(params);

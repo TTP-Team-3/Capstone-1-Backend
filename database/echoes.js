@@ -29,18 +29,6 @@ const Echoes = db.define(
       allowNull: false,
     },
 
-    image_uuids: {
-      type: DataTypes.ARRAY(DataTypes.UUID),
-      allowNull: false,
-      defaultValue: [],
-    },
-
-    signed_urls: {
-      type: DataTypes.ARRAY(DataTypes.TEXT("long")),
-      allowNull: false,
-      defaultValue: [],
-    },
-
     text: {
       type: DataTypes.TEXT,
       allowNull: true,
