@@ -27,7 +27,24 @@ router.get("/", async(req, res) => {
 
 router.post("/", authenticateJWT, async(req, res) => {
     try {
-        
+        const { tag_name } = req.body; 
+        if (!tag_name || typeof tag_name !== 'string') {
+            return res.status(400).json({error: 'Tag name is required and must be a string'});
+        }
+
+        // check if tag name already exists 
+        const existingTag = await Tags.findOne({where: {name: tag_name}});
+        if (existingTag) {
+            return res.status(400).json({error: "Tag name already exists."});
+        }
+
+        // create tag 
+        const createTag = await Tags.create({ name: tag_name });
+
+        return res.status(201).json({
+            message: "Tag successfully added", 
+            tag: createTag
+        });
     } catch (err) {
        console.error(err);
        return res.status(500).json({error: "Error adding tag to echo."});
@@ -42,5 +59,14 @@ router.get("/:id/echoes", async (req, res) => {
         return res.status(500).json({error: "Error finding echos with this tag."});
     }
 }); 
+
+router.post("/:id/echoes/:id", authenticateJWT, async(req, res) => {
+   try {
+
+   } catch(err) {
+    console.error(err);
+    return res.status(500).json({error: "Error finding echoes with this tag."});
+   } 
+});
 
 module.exports = router; 
