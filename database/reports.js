@@ -17,6 +17,15 @@ const Reports = db.define("reports", {
         }
     },
 
+    reply_id: {
+      type: DataTypes.INTEGER, 
+      allowNull: true, 
+      references: {
+        model: 'replies',
+        key: 'id'
+      } 
+    },
+
     reporter_id: {
         type: DataTypes.INTEGER, 
         allowNull: false, 
@@ -27,7 +36,7 @@ const Reports = db.define("reports", {
     }, 
 
     type: {
-        type: DataTypes.ENUM('spam', 'harrassment', 'hate_speech', 'explicit', 'other'),
+        type: DataTypes.ENUM('spam', 'harassment', 'hate_speech', 'explicit', 'other'),
         allowNull: false, 
     }, 
 
