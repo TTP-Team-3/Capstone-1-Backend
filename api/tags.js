@@ -65,7 +65,7 @@ router.post("/:id/echoes/:id", authenticateJWT, async(req, res) => {
 
    } catch(err) {
     console.error(err);
-    return res.status(500).json({error: "Error finding echoes with this tag."});
+    return res.status(500).json({error: "Error assigning tag to echo."});
    } 
 });
 
