@@ -9,11 +9,11 @@ const multer = require("multer");
 const crypto = require("crypto");
 const {
   S3Client,
-  PutObjectCommand,
   GetObjectCommand,
   DeleteObjectsCommand,
 } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { Upload } = require("@aws-sdk/lib-storage");
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 const bucketName = process.env.BUCKET_NAME;
@@ -200,16 +200,29 @@ router.post(
       }
 
       const image_uuids = [];
+      req.files.forEach((file) => {
+        if (file.size > Math.pow(10, 9)) {
+          res
+            .status(400)
+            .json({ error: "File size exceeds limit, no file uploaded." });
+          return;
+        }
+      });
       for (let i = 0; i < req.files.length; i++) {
         const uuid = crypto.randomUUID();
-        const params = {
-          Bucket: bucketName,
-          Key: uuid,
-          Body: req.files[i].buffer,
-          ContentType: req.files[i].mimetype,
-        };
-        const command = new PutObjectCommand(params);
-        await s3.send(command);
+        const parallelUpload = new Upload({
+          client: s3,
+          params: {
+            Bucket: bucketName,
+            Key: uuid,
+            Body: req.files[i].buffer,
+            ContentType: req.files[i].mimetype,
+          },
+        });
+        parallelUpload.on("httpUploadProgress", (progress) => {
+          console.log(progress);
+        });
+        await parallelUpload.done();
         image_uuids.push(uuid);
       }
 
@@ -336,6 +349,14 @@ router.delete("/:id", authenticateJWT, async (req, res) => {
         .status(403)
         .json({ error: "You are not the owner of this echo." });
     }
+    const params = {
+      Bucket: bucketName,
+      Delete: {
+        Objects: echo.image_uuids.map((uuid) => ({ Key: uuid })),
+      },
+    };
+    const command = new DeleteObjectsCommand(params);
+    await s3.send(command);
 
     // delete the echo
     await echo.destroy();
