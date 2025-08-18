@@ -75,6 +75,11 @@ const Echoes = db.define("echoes", {
  lng: {
    type: DataTypes.DECIMAL(9, 6),
    allowNull: true
+ },
+
+ tags: {
+  type: DataTypes.ARRAY(DataTypes.STRING),
+  allowNull: true
  }
 
 }, {
