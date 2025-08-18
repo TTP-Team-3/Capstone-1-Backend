@@ -77,10 +77,10 @@ const Echoes = db.define("echoes", {
    allowNull: true
  },
 
- tags: {
-  type: DataTypes.ARRAY(DataTypes.STRING),
-  allowNull: true
- }
+//  tags: {
+//   type: DataTypes.ARRAY(DataTypes.STRING),
+//   allowNull: true
+//  }
 
 }, {
     tableName: 'echoes', 
