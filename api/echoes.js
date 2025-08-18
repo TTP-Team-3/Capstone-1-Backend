@@ -1,8 +1,33 @@
-const express = require("express")
+require("dotenv").config();
+const express = require("express");
 const router = express.Router();
-const { Echoes, Echo_recipients, Friends } = require("../database"); 
-const { authenticateJWT } = require("../auth"); 
+const { Echoes, Echo_recipients, Friends, Media } = require("../database");
+const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
+const { response } = require("../app");
+const multer = require("multer");
+const crypto = require("crypto");
+const {
+  S3Client,
+  GetObjectCommand,
+  DeleteObjectsCommand,
+} = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { Upload } = require("@aws-sdk/lib-storage");
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+const bucketName = process.env.BUCKET_NAME;
+const bucketRegion = process.env.BUCKET_REGION;
+const accessKey = process.env.ACCESS_KEY;
+const secretAccessKey = process.env.SECRET_ACCESS_KEY;
+
+const s3 = new S3Client({
+  credentials: {
+    accessKeyId: accessKey,
+    secretAccessKey: secretAccessKey,
+  },
+  region: bucketRegion,
+});
 
 /* ---------- helpers ---------- */
 // helper: check if two users are friends (accepted)
@@ -118,90 +143,286 @@ router.get("/", authenticateJWT, async (req, res) => {
    fetching echo by id 
    ========================================================= */
 router.get("/:id", authenticateJWT, async (req, res) => {
-    try {
-        const user_id = req.user.id;
-        const echo = await Echoes.findByPk(req.params.id);
+  try {
+    const user_id = req.user.id;
+    const echo = await Echoes.findByPk(req.params.id, {
+      include: { model: Media },
+    });
 
-        if (!echo) {
-            return res.status(404).json({error: "Echo not found"});
-        }
-
-        const isCreator = echo.user_id === user_id; 
-
-        // If echo is only visible to self and the user is the creator
-        if (echo.recipient_type === "self") {
-            if (isCreator) {
-                return res.json(echo);
-            } else {
-                return res.status(403).json({private: "This echo is private"});
-            }
-        }
-        
-        // If echo is public, only show if unlocked 
-        if (echo.recipient_type === "public") {
-            if (echo.is_unlocked) {
-                return res.json(echo);
-            } else if (isCreator) {
-                return res.json(echo);
-            } else {
-                return res.status(403).json({locked: "Echo is locked"});
-            }
-        }
-
-        // if echo is for friends and is unlocked      
-        if (echo.recipient_type === "friend") {
-            if (isCreator) {
-                return res.json(echo); // creator can always view
-            }
-
-            // check if friendship is accepted between echo creator and logged in user
-            const isFriend = await Friends.findOne({
-                where: {
-                    [Op.or]: [
-                        {user_id: echo.user_id, friend_id: user_id}, 
-                        {user_id: user_id, friend_id: echo.user_id}
-                    ],
-                    status: "accepted"
-                }
-            });
-
-            if (isFriend) {
-                if (echo.is_unlocked) {
-                    return res.json(echo);
-                } else {
-                    return res.status(403).json({locked:"Echo is locked"});
-                }
-            } else {
-                return res.status(403).json({not_friend: "This echo is only accessible to friends of echo creator"});
-            }
-        }
-
-        // if echo is custom and for specific users 
-        if (echo.recipient_type === "custom") {
-            if (isCreator) {
-                return res.json(echo);
-            }
-            const isRecipient = await Echo_recipients.findOne({
-                where: {
-                    echo_id: echo.id,
-                    recipient_id: user_id,
-                }
-            })
-
-            if (isRecipient && echo.is_unlocked) {
-                return res.json(echo);
-            } else if (isRecipient && !echo.is_unlocked) {
-                return res.status(403).json({locked: "Echo is locked"});
-            }
-        }
-
-        // default: no access
-        res.status(403).json({no_access: "You cannot access this echo"});
-
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({ error: "Failed to fetch echo" })
+    if (!echo) {
+      return res.status(404).json({ error: "Echo not found" });
     }
+
+    const isCreator = echo.user_id === user_id;
+
+    for (let i = 0; i < echo.media.length; i++) {
+      const objectParams = {
+        Bucket: bucketName,
+        Key: echo.media[i].uuid,
+      };
+      const command = new GetObjectCommand(objectParams);
+      const url = await getSignedUrl(s3, command, { expiresIn: 3600 });
+      await echo.media[i].update({ signed_url: url });
+    }
+
+    // If echo is only visible to self and the user is the creator
+    if (echo.recipient_type === "self") {
+      if (isCreator) {
+        return res.json(echo);
+      } else {
+        return res.status(403).json({ private: "This echo is private" });
+      }
+    }
+
+    // If echo is public, only show if unlocked
+    if (echo.recipient_type === "public") {
+      if (echo.is_unlocked) {
+        return res.json(echo);
+      } else if (isCreator) {
+        return res.json(echo);
+      } else {
+        return res.status(403).json({ locked: "Echo is locked" });
+      }
+    }
+
+    // if echo is for friends and is unlocked
+    if (echo.recipient_type === "friend") {
+      if (isCreator) {
+        return res.json(echo); // creator can always view
+      }
+
+      // check if friendship is accepted between echo creator and logged in user
+      const isFriend = await Friends.findOne({
+        where: {
+          [Op.or]: [
+            { user_id: echo.user_id, friend_id: user_id },
+            { user_id: user_id, friend_id: echo.user_id },
+          ],
+          status: "accepted",
+        },
+      });
+
+      if (isFriend) {
+        if (echo.is_unlocked) {
+          return res.json(echo);
+        } else {
+          return res.status(403).json({ locked: "Echo is locked" });
+        }
+      } else {
+        return res.status(403).json({
+          not_friend: "This echo is only accessible to friends of echo creator",
+        });
+      }
+    }
+
+    // if echo is custom and for specific users
+    if (echo.recipient_type === "custom") {
+      if (isCreator) {
+        return res.json(echo);
+      }
+      const isRecipient = await Echo_recipients.findOne({
+        where: {
+          echo_id: echo.id,
+          recipient_id: user_id,
+        },
+      });
+
+      if (isRecipient && echo.is_unlocked) {
+        return res.json(echo);
+      } else if (isRecipient && !echo.is_unlocked) {
+        return res.status(403).json({ locked: "Echo is locked" });
+      }
+    }
+
+    // default: no access
+    res.status(403).json({ no_access: "You cannot access this echo" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Failed to fetch echo" });
+  }
+});
+
+
+/* =========================================================
+   creating an echo 
+   ========================================================= */ 
+router.post(
+  "/",
+  [authenticateJWT, upload.array("media", 10)],
+  async (req, res) => {
+    try {
+      const {
+        echo_name,
+        recipient_type,
+        text,
+        unlock_datetime,
+        show_sender_name,
+        lat,
+        lng,
+        customRecipients,
+      } = req.body;
+      const sender_id = req.user.id;
+
+      // checking if any required fields are missing
+      if (!sender_id || !recipient_type || !unlock_datetime) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // checking if unlock_datetime is in the future
+      const unlockTime = new Date(unlock_datetime);
+
+      if (isNaN(unlockTime.getTime())) {
+        return res
+          .status(400)
+          .json({ error: "Invalid unlock_datetime format" });
+      }
+
+      if (unlockTime < new Date()) {
+        return res
+          .status(400)
+          .json({ error: "unlock_datetime must be in the future" });
+      }
+
+      // validating customRecipients array if recipient_type is 'custom'
+      if (recipient_type === "custom") {
+        if (!Array.isArray(customRecipients) || customRecipients.length === 0) {
+          return res.status(400).json({
+            error: "Custom recipient list must be a non-empty array.",
+          });
+        }
+
+        // prevent sending to self
+        if (customRecipients.includes(sender_id)) {
+          return res
+            .status(400)
+            .json({ error: "Cannot send custom echoes to yourself." });
+        }
+      }
+      function getFileType(file) {
+        const name = file.originalname.split(".")[1].toLowerCase();
+        if (
+          name === "jpg" ||
+          name === "jpeg" ||
+          name === "png" ||
+          name === "heic" ||
+          name === "heif" ||
+          name === "gif" ||
+          name === "webp"
+        ) {
+          return "image";
+        } else if (name === "mp4" || name === "mov" || name === "webm") {
+          return "video";
+        } else {
+          return "other";
+        }
+      }
+
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        if (file.size > Math.pow(10, 9)) {
+          return res.status(400).json({
+            error: "File size exceeds limit of 1 GB, no file uploaded.",
+          });
+        }
+      }
+
+      // Validate file types
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        if (getFileType(file) === "other") {
+          return res.status(400).json({ error: "File type not supported!" });
+        }
+      }
+      const image_data_list = [];
+      for (let i = 0; i < req.files.length; i++) {
+        const uuid = crypto.randomUUID();
+        const parallelUpload = new Upload({
+          client: s3,
+          params: {
+            Bucket: bucketName,
+            Key: uuid,
+            Body: req.files[i].buffer,
+            ContentType: req.files[i].mimetype,
+          },
+        });
+        parallelUpload.on("httpUploadProgress", (progress) => {
+          console.log(progress);
+        });
+        await parallelUpload.done();
+        image_data_list.push({
+          uuid,
+          fileType: getFileType(req.files[i]),
+          size: req.files[i].size,
+        });
+      }
+
+      // creating new echo
+      const newEcho = await Echoes.create({
+        echo_name,
+        user_id: sender_id,
+        recipient_type,
+        text,
+        unlock_datetime,
+        show_sender_name,
+        lat,
+        lng,
+      });
+      for (let i = 0; i < image_data_list.length; i++) {
+        const image_data = image_data_list[i];
+        await Media.create({
+          uuid: image_data.uuid,
+          echo_id: newEcho.id,
+          type: image_data.fileType,
+          file_size: image_data.size,
+        });
+      }
+      // add custom recipients if custom
+      if (recipient_type === "custom") {
+        const echoRecipients = customRecipients.map((recipient_id) => ({
+          echo_id: newEcho.id,
+          recipient_id,
+        }));
+
+        await Echo_recipients.bulkCreate(echoRecipients);
+      }
+
+      res.status(201).json(newEcho);
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: "Failed to create echo" });
+    }
+  },
+);
+
+// arching or unarchiving an echo
+router.patch("/:id/archive", authenticateJWT, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+    const echo = await Echoes.findByPk(req.params.id);
+
+    if (!echo) {
+      return res.status(404).json({ error: "Echo not found" });
+    }
+
+    if (echo.user_id !== user_id) {
+      return res
+        .status(403)
+        .json({ error: "You are not the owner of this echo." });
+    }
+
+    // Toggle archived status
+    echo.is_archived = !echo.is_archived;
+    await echo.save();
+
+    return res.status(200).json({
+      message: echo.is_archived ? "Echo archived" : "Echo unarchived",
+      echo,
+    });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ error: "Failed to toggle echo archive status" });
+  }
 });
 
 /* =========================================================
@@ -262,127 +483,44 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
   }
 });
 
-/* =========================================================
-   creating an echo 
-   ========================================================= */ 
-router.post("/", authenticateJWT, async (req, res) => { 
-
-    try {
-        const { echo_name, recipient_type, text, unlock_datetime, show_sender_name, lat, lng, customRecipients } = req.body;
-        const sender_id = req.user.id;
-
-        // checking if any required fields are missing 
-        if (!sender_id || !recipient_type || !unlock_datetime) {
-            return res.status(400).json({error: "Missing required fields"});
-        }
-
-        // checking if unlock_datetime is in the future 
-        const unlockTime = new Date(unlock_datetime);
-
-        if (isNaN(unlockTime.getTime())) {
-            return res.status(400).json({error: "Invalid unlock_datetime format"});
-        }
-
-        if (unlockTime < new Date()) {
-            return res.status(400).json({error:"unlock_datetime must be in the future"});
-        }
-
-        // validating customRecipients array if recipient_type is 'custom'
-        if (recipient_type === "custom") {
-            if (!Array.isArray(customRecipients) || customRecipients.length === 0) {
-                return res.status(400).json({error: "Custom recipient list must be a non-empty array."});
-            }
-
-            // prevent sending to self 
-            if (customRecipients.includes(sender_id)) {
-                return res.status(400).json({error: "Cannot send custom echoes to yourself."});
-            }
-        }
-
-        // creating new echo 
-        const newEcho = await Echoes.create({
-            echo_name,
-            user_id: sender_id,
-            recipient_type, 
-            text,
-            unlock_datetime, 
-            show_sender_name,
-            lat,
-            lng
-        });
-
-        // add custom recipients if custom 
-        if (recipient_type === 'custom') {
-            const echoRecipients = customRecipients.map((recipient_id) => ({
-                echo_id: newEcho.id,
-                recipient_id
-            }));
-
-            await Echo_recipients.bulkCreate(echoRecipients);
-        }
-
-        res.status(201).json(newEcho);
-    } catch (err) {
-        res.status(500).json({error: "Failed to create echo"});
-    }
-});
-
-// unlocking an echo 
-router.patch("/:id/archive", authenticateJWT, async (req, res) => {
-    try {
-        const user_id = req.user.id;
-        const echo = await Echoes.findByPk(req.params.id);
-
-        if (!echo) {
-            return res.status(404).json({ error: "Echo not found" });
-
-        }
-
-        if (echo.user_id !== user_id) {
-            return res.status(403).json({ error: "You are not the owner of this echo."});
-        }
-
-        // Toggle archived status 
-        echo.is_archived = !echo.is_archived; 
-        await echo.save();
-
-        return res.status(200).json({
-            message: echo.is_archived ? "Echo archived" : "Echo unarchived",
-            echo
-         });
-
-    } catch (err) {
-        return res.status(500).json({error: "Failed to toggle echo archive status"});
-    }
-});
-
 // deleting an echo 
 router.delete("/:id", authenticateJWT, async (req, res) => {
-    try {
-        const user_id = req.user.id; 
-        const echo = await Echoes.findByPk(req.params.id); 
+  try {
+    const user_id = req.user.id;
+    const echo = await Echoes.findByPk(req.params.id, { include: Media });
 
-        // check if echo exists 
-        if (!echo) {
-            return res.status(404).json({error: "Echo not found."}); 
-        }
-
-        // check ownership 
-        if (user_id !== echo.user_id) {
-            return res.status(403).json({ error: "You are not the owner of this echo."});
-        }
-
-        // delete the echo 
-        await echo.destroy();
-
-        return res.status(200).json({
-            message: "Echo deleted successfully", 
-            id: echo.id
-        });
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({error: "Error deleting this echo"});
+    // check if echo exists
+    if (!echo) {
+      return res.status(404).json({ error: "Echo not found." });
     }
+
+    // check ownership
+    if (user_id !== echo.user_id) {
+      return res
+        .status(403)
+        .json({ error: "You are not the owner of this echo." });
+    }
+
+    const params = {
+      Bucket: bucketName,
+      Delete: {
+        Objects: echo.media.map((media) => ({ Key: media.uuid })),
+      },
+    };
+    const command = new DeleteObjectsCommand(params);
+    await s3.send(command);
+
+    // delete the echo
+    await echo.destroy();
+
+    return res.status(200).json({
+      message: "Echo deleted successfully",
+      id: echo.id,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Error deleting this echo" });
+  }
 });
 
-module.exports = router; 
+module.exports = router;
