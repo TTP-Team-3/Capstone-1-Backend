@@ -1,15 +1,24 @@
 const express = require("express")
 const router = express.Router();
-const { Friends} = require("../database"); 
+const { Friends } = require("../database"); 
 const { authenticateJWT } = require("../auth");
 const { Op } = require("sequelize");
 
 router.get("/", authenticateJWT, async (req, res) => {
     try {
-        const user_id = req.user.id;
+        const userId = req.user.id;
         const friends = await Friends.findAll({
-            where: {user_id: user_id, status: "accepted"},
+            where: {
+                [Op.or]: [
+                    {user_id: userId},
+                    {friend_id: userId}
+                ],
+                status: {
+                    [Op.or]: ["accepted", "pending", "blocked"]
+                }
+            }
         });
+
         res.json(friends);
     } catch (err) {
         res.status(500).json({ error: "Failed to fetch friends" }); 
@@ -49,7 +58,7 @@ router.post("/", authenticateJWT, async (req, res) => {
         });
 
         if (isFriend) {
-            return res.status(403).json({friends: "Already friends"});
+            return res.status(403).json({ message: "Already friends"});
         }
 
         // check if there's already an existing request 
@@ -64,7 +73,7 @@ router.post("/", authenticateJWT, async (req, res) => {
         });
 
         if (requestExists) {
-            return res.status(403).json({request: "Friend request sent already"});
+            return res.status(403).json({message: "Friend request sent already"});
         }
 
         // create pending request  
@@ -78,29 +87,108 @@ router.post("/", authenticateJWT, async (req, res) => {
 
 router.patch("/:id/accept", authenticateJWT, async (req, res) => {
     try {
+        const userId = req.user.id; 
+        const friendRequest = await Friends.findByPk(req.params.id); 
+
+        if (!friendRequest) {
+            return res.status(404).json({error: "Friend request not found."});
+        }
+
+        // Ensure current user is the receiver 
+        if (friendRequest.friend_id !== userId) {
+            return res.status(403).json({ error: "You are not the recipient of this friend request." });
+        }
+
+        // check if already accepted
+         if (friendRequest.status === "accepted") {
+            return res.status(400).json({error: "This person is already your friend."});
+        }
+
+        // must be pending to accept 
+        if (friendRequest.status !== "pending") {
+            return res.status(400).json({error: "This request is not pending."});
+        }
+
+        // Accept friend request 
+        friendRequest.status = "accepted"; 
+        await friendRequest.save(); 
+
+        return res.status(200).json({
+            message: "Friend request accepted", 
+            friendRequest
+        });
 
     } catch (err) {
-
+        console.error(err);
+        return res.status(500).json({error: "Error accepting friend request."});
     }
 });
 
-router.patch("/:id/accept", authenticateJWT, async (req, res) => {
+router.patch("/:id/block", authenticateJWT, async (req, res) => {
     try {
-    
+        const userId = req.user.id; 
+        const friendship = await Friends.findByPk(req.params.id); 
+
+        if (!friendship) {
+            return res.status(404).json({error: "Friendship not found."});
+        }
+
+        // Ensure current user is the receiver 
+        if (friendship.friend_id !== userId) {
+            return res.status(403).json({ error: "You are not the recipient of this friend request." });
+        }
+
+        // Checking if user is blocked already 
+        if (friendship.status === "blocked") {
+            return res.status(400).json({ error: "User already blocked." })
+        }
+
+        // Block user from sending friend requests
+        friendship.status = "blocked"; 
+        await friendship.save(); 
+
+        return res.status(200).json({
+            message: "User successfully blocked", 
+            friendStatus: friendship
+        });
+
     } catch (err) {
-    
+        console.error(err);
+        return res.status(500).json({error: "Error blocking user."});
     }
 });
 
 router.delete("/:id", authenticateJWT, async (req, res) => {
     try {
-    
+        const userId = req.user.id; 
+        const friendship = await Friends.findByPk(req.params.id);
+
+        // friendship not found
+        if (!friendship) {
+            return res.status(404).json({error: "Friendship not found."});
+        }
+
+        // Ensure current user is in the friendship pair  
+        if (friendship.friend_id !== userId && friendship.user_id !== userId) {
+            return res.status(403).json({ error: "You are not a part of this friendship." });
+        }
+        
+       await friendship.destroy();
+
+       return res.status(200).json({
+        message: "Friend or friend request removed successfully.",
+        friendship
+       });
+
     } catch (err) {
-    
+        console.error(err);
+        return res.status(500).json({error: "Error removing friend or friend request"});
     }
 });
 
 module.exports = router; 
+
+
 
 
 

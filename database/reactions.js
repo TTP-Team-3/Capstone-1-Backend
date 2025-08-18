@@ -27,7 +27,7 @@ const Reactions = db.define('reactions', {
     }, 
 
     type: {
-        type: DataTypes.ENUM('sad', 'funny', 'happy'),
+        type: DataTypes.ENUM('sad', 'funny', 'happy', 'like', 'love', 'angry', 'wow'),
         allowNull: false
     }
 }, {
