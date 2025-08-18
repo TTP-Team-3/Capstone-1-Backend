@@ -264,10 +264,11 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
 
 /* =========================================================
    creating an echo 
-   ========================================================= */
-router.post("/", authenticateJWT, async (req, res) => {
+   ========================================================= */ 
+router.post("/", authenticateJWT, async (req, res) => { 
+
     try {
-        const { recipient_type, text, unlock_datetime, show_sender_name, customRecipients } = req.body;
+        const { echo_name, recipient_type, text, unlock_datetime, show_sender_name, lat, lng, customRecipients } = req.body;
         const sender_id = req.user.id;
 
         // checking if any required fields are missing 
@@ -300,11 +301,14 @@ router.post("/", authenticateJWT, async (req, res) => {
 
         // creating new echo 
         const newEcho = await Echoes.create({
+            echo_name,
             user_id: sender_id,
             recipient_type, 
             text,
             unlock_datetime, 
-            show_sender_name
+            show_sender_name,
+            lat,
+            lng
         });
 
         // add custom recipients if custom 
@@ -323,27 +327,76 @@ router.post("/", authenticateJWT, async (req, res) => {
     }
 });
 
-router.patch("/:id/archive", async (req, res) => {
+// unlocking an echo 
+router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
     try {
+        const user_id = req.user.id; 
+        const echo = await Echoes.findByPk(req.params.id);
+
+        // check if echo exists 
+        if (!echo) {
+            return res.status(404).json({error: "Echo not found."});
+        }
+
+        // check if user is owner
+        if (user_id !== echo.user_id) {
+            return res.status(403).json({error: "You cannot access this echo."});
+        }
+
+        // enforce unlock date 
+        if (new Date() < new Date(echo.unlock_datetime)) {
+            return res.status(403).json({ error: "This echo is locked until its unlock date."});
+        }
+
+        // already unlocked 
+        if (echo.is_unlocked) {
+            return res.status(200).json({
+                message: "Echo is already unlocked.", 
+                echo 
+            })
+        } 
+        
+        // Unlock 
+        echo.is_unlocked = true; 
+        await echo.save(); 
+
+        return res.status(200).json({
+            message: "Echo unlocked",
+            echo
+        });
 
     } catch (err) {
-
+        console.error(err);
+        res.status(500).json({error: "Error unlocking this echo"});
     }
 });
 
-router.patch("/:id/unlock", async (req, res) => {
-    try {
-
-    } catch (err) {
-
-    }
-});
-
+// deleting an echo 
 router.delete("/:id", authenticateJWT, async (req, res) => {
     try {
+        const user_id = req.user.id; 
+        const echo = await Echoes.findByPk(req.params.id); 
 
+        // check if echo exists 
+        if (!echo) {
+            return res.status(404).json({error: "Echo not found."}); 
+        }
+
+        // check ownership 
+        if (user_id !== echo.user_id) {
+            return res.status(403).json({ error: "You are not the owner of this echo."});
+        }
+
+        // delete the echo 
+        await echo.destroy();
+
+        return res.status(200).json({
+            message: "Echo deleted successfully", 
+            id: echo.id
+        });
     } catch (err) {
-
+        console.error(err);
+        return res.status(500).json({error: "Error deleting this echo"});
     }
 });
 

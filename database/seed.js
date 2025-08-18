@@ -1,5 +1,5 @@
 const db = require("./db");
-const { User, Echoes, Friends, Echo_recipients } = require("./index");
+const { User, Echoes, Friends, Echo_recipients, Replies, Reactions, Tags } = require("./index");
 
 
 const seed = async () => {
@@ -195,7 +195,57 @@ const seed = async () => {
 
     console.log(`📨 Created ${echoRecipients.length} echo_recipients for custom echo`);
 
-    console.log("🌱 Seeded the database");
+    // replies
+    const replies = await Replies.bulkCreate([
+      { echo_id: echoes[0].id, user_id: users[1].id, message: "Hey Jeramy, nice private echo!" },
+      { echo_id: echoes[0].id, user_id: users[2].id, message: "Agreed, this is cool." },
+      { echo_id: echoes[1].id, user_id: users[0].id, message: "Glad to be your friend, Aiyanna!" },
+      { echo_id: echoes[2].id, user_id: users[3].id, message: "Public echoes are great!" },
+      // Nested reply (replying to the first reply above)
+      { echo_id: echoes[0].id, user_id: users[0].id, parent_reply_id: 1, message: "Thanks, Aiyanna!" }
+    ]);
+    console.log(`💬 Created ${replies.length} replies`);
+
+    // reactions 
+    const reactions = await Reactions.bulkCreate([
+    // Echo 0 (self) — only Jeramy
+    { echo_id: echoes[0].id, user_id: users[0].id, type: 'love' },
+
+    // Echo 1 (friend, unlocked) — creator (Aiyanna) + Jeramy (friend accepted)
+    { echo_id: echoes[1].id, user_id: users[1].id, type: 'happy' },
+    { echo_id: echoes[1].id, user_id: users[0].id, type: 'like' },
+
+    // Echo 2 (public, unlocked) — everyone can react
+    { echo_id: echoes[2].id, user_id: users[2].id, type: 'like' },   // creator
+    { echo_id: echoes[2].id, user_id: users[0].id, type: 'wow' },
+    { echo_id: echoes[2].id, user_id: users[1].id, type: 'love' },
+    { echo_id: echoes[2].id, user_id: users[3].id, type: 'funny' },
+
+    // Echo 3 (public, locked) — only Olivia
+    { echo_id: echoes[3].id, user_id: users[3].id, type: 'angry' },
+
+    // Echo 4 (custom, locked) — only Jeramy (creator) and recipients (u1, u2)
+    { echo_id: echoes[4].id, user_id: users[0].id, type: 'happy' },  // creator
+    { echo_id: echoes[4].id, user_id: users[1].id, type: 'wow' },    // recipient
+    { echo_id: echoes[4].id, user_id: users[2].id, type: 'like' }    // recipient
+  ]);
+
+  console.log(`😎 Created ${reactions.length} reactions`);
+
+  const tags = await Tags.bulkCreate([
+    { name: 'funny' },
+    { name: 'inspirational' },
+    { name: 'personal' },
+    { name: 'friends' },
+    { name: 'public' },
+    { name: 'locked' },
+    { name: 'announcement' },
+    { name: 'random' }
+  ]);
+
+  console.log(`🏷️ Created ${tags.length} tags`);
+
+  console.log("🌱 Seeded the database");
 
   } catch (error) {
     console.error("Error seeding database:", error);

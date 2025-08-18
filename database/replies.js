@@ -33,6 +33,11 @@ const Replies = db.define('replies', {
             model: 'replies', 
             key: 'id'
         } 
+    }, 
+
+    message: {
+        type: DataTypes.TEXT, 
+        allowNull: false, 
     }
 }, {
     tableName: 'replies', 
