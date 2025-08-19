@@ -245,6 +245,30 @@ const seed = async () => {
 
   console.log(`🏷️ Created ${tags.length} tags`);
 
+  const echoTags = await db.models.echo_tags.bulkCreate([
+    // Jeramy's Private Echo → personal, locked
+    { echo_id: echoes[0].id, tag_id: tags[2].id }, // personal
+    { echo_id: echoes[0].id, tag_id: tags[5].id }, // locked
+
+    // Aiyanna's Friends Echo → friends, inspirational
+    { echo_id: echoes[1].id, tag_id: tags[3].id }, // friends
+    { echo_id: echoes[1].id, tag_id: tags[1].id }, // inspirational
+
+    // Public Echo by Emmanuel → public, funny
+    { echo_id: echoes[2].id, tag_id: tags[4].id }, // public
+    { echo_id: echoes[2].id, tag_id: tags[0].id }, // funny
+
+    // Olivia's Public Echo → public, announcement
+    { echo_id: echoes[3].id, tag_id: tags[4].id }, // public
+    { echo_id: echoes[3].id, tag_id: tags[6].id }, // announcement
+
+    // Jeramy's Custom Echo → friends, random
+    { echo_id: echoes[4].id, tag_id: tags[3].id }, // friends
+    { echo_id: echoes[4].id, tag_id: tags[7].id }  // random
+  ]);
+
+  console.log(`🔖 Created ${echoTags.length} echo_tags`);
+
   console.log("🌱 Seeded the database");
 
   } catch (error) {
