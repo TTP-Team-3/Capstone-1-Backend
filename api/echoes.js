@@ -287,9 +287,9 @@ router.post(
           .json({ error: "Invalid unlock_datetime format" });
       }
 
-      console.log("Now: ", new Date())
-      console.log("New time: ", new Date(unlockTime))
-      if (unlockTime < new Date()) {
+      console.log("Now: ", new Date().getTime())
+      console.log("New time: ", unlockTime.getTime())
+      if (unlockTime.getTime() < new Date().getTime()) {
         return res
           .status(400)
           .json({ error: "unlock_datetime must be in the future" });
