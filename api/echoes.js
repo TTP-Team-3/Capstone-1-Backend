@@ -32,25 +32,25 @@ const s3 = new S3Client({
 /* ---------- helpers ---------- */
 // helper: check if two users are friends (accepted)
 async function isFriendWith(db, meId, otherId) {
-    if (meId === otherId) return true;
-    const rel = await Friends.findOne({
-        where: {
-            [Op.or]: [
-                { user_id: otherId, friend_id: meId },
-                { user_id: meId, friend_id: otherId },
-            ],
-            status: "accepted",
-        },
-    });
-    return !!rel;
+  if (meId === otherId) return true;
+  const rel = await Friends.findOne({
+    where: {
+      [Op.or]: [
+        { user_id: otherId, friend_id: meId },
+        { user_id: meId, friend_id: otherId },
+      ],
+      status: "accepted",
+    },
+  });
+  return !!rel;
 }
 
 // helper: check if user is a recipient in Echo_recipients
 async function isRecipientOf(db, echoId, meId) {
-    const rec = await Echo_recipients.findOne({
-        where: { echo_id: echoId, recipient_id: meId },
-    });
-    return !!rec;
+  const rec = await Echo_recipients.findOne({
+    where: { echo_id: echoId, recipient_id: meId },
+  });
+  return !!rec;
 }
 
 /* =========================================================
@@ -63,38 +63,39 @@ async function isRecipientOf(db, echoId, meId) {
    - self (only if you’re the author)
    ========================================================= */
 router.get("/home", authenticateJWT, async (req, res) => {
-    try {
-        const user_id = req.user.id;
+  try {
+    const user_id = req.user.id;
 
-        const all = await Echoes.findAll();
-        const visible = [];
+    const all = await Echoes.findAll();
+    const visible = [];
 
-        for (const e of all) {
-            const own = e.user_id === user_id;
+    for (const e of all) {
+      const own = e.user_id === user_id;
 
-            if (e.recipient_type === "public") {
-                visible.push(e);
-                continue;
-            }
-            if (e.recipient_type === "self") {
-                if (own) visible.push(e);
-                continue;
-            }
-            if (e.recipient_type === "friend") {
-                if (own || (await isFriendWith(null, user_id, e.user_id))) visible.push(e);
-                continue;
-            }
-            if (e.recipient_type === "custom") {
-                if (own || (await isRecipientOf(null, e.id, user_id))) visible.push(e);
-                continue;
-            }
-        }
-
-        res.json(visible);
-    } catch (err) {
-        console.error("GET /api/echoes/home error:", err);
-        res.status(500).json({ error: "Failed to load homepage echoes" });
+      if (e.recipient_type === "public") {
+        visible.push(e);
+        continue;
+      }
+      if (e.recipient_type === "self") {
+        if (own) visible.push(e);
+        continue;
+      }
+      if (e.recipient_type === "friend") {
+        if (own || (await isFriendWith(null, user_id, e.user_id)))
+          visible.push(e);
+        continue;
+      }
+      if (e.recipient_type === "custom") {
+        if (own || (await isRecipientOf(null, e.id, user_id))) visible.push(e);
+        continue;
+      }
     }
+
+    res.json(visible);
+  } catch (err) {
+    console.error("GET /api/echoes/home error:", err);
+    res.status(500).json({ error: "Failed to load homepage echoes" });
+  }
 });
 
 /* =========================================================
@@ -103,44 +104,53 @@ router.get("/home", authenticateJWT, async (req, res) => {
    - Saved: (stub) return [] until you add a Saved table/flag
    ========================================================= */
 router.get("/", authenticateJWT, async (req, res) => {
-    try {
-        const user_id = req.user.id;
-        const tab = (req.query.tab || "Inbox").toLowerCase();
+  try {
+    const user_id = req.user.id;
+    const tab = (req.query.tab || "Inbox").toLowerCase();
 
-        if (tab === "saved") {
-            // TODO: wire to real saved/bookmark table/flag
-            return res.json([]);
-        }
-
-        // Inbox
-        const all = await Echoes.findAll();
-        const inbox = [];
-
-        for (const e of all) {
-            const own = e.user_id === user_id;
-
-            if (own) { inbox.push(e); continue; }
-
-            if (e.recipient_type === "friend") {
-                if (await isFriendWith(null, user_id, e.user_id)) { inbox.push(e); continue; }
-            }
-
-            if (e.recipient_type === "custom") {
-                if (await isRecipientOf(null, e.id, user_id)) { inbox.push(e); continue; }
-            }
-
-            // exclude public/self by others from Inbox per your spec
-        }
-
-        res.json(inbox);
-    } catch (err) {
-        console.error("GET /api/echoes error:", err);
-        res.status(500).json({ error: "Failed to fetch echoes" });
+    if (tab === "saved") {
+      // TODO: wire to real saved/bookmark table/flag
+      return res.json([]);
     }
+
+    // Inbox
+    const all = await Echoes.findAll();
+    const inbox = [];
+
+    for (const e of all) {
+      const own = e.user_id === user_id;
+
+      if (own) {
+        inbox.push(e);
+        continue;
+      }
+
+      if (e.recipient_type === "friend") {
+        if (await isFriendWith(null, user_id, e.user_id)) {
+          inbox.push(e);
+          continue;
+        }
+      }
+
+      if (e.recipient_type === "custom") {
+        if (await isRecipientOf(null, e.id, user_id)) {
+          inbox.push(e);
+          continue;
+        }
+      }
+
+      // exclude public/self by others from Inbox per your spec
+    }
+
+    res.json(inbox);
+  } catch (err) {
+    console.error("GET /api/echoes error:", err);
+    res.status(500).json({ error: "Failed to fetch echoes" });
+  }
 });
 
 /* =========================================================
-   fetching echo by id 
+   fetching echo by id
    ========================================================= */
 router.get("/:id", authenticateJWT, async (req, res) => {
   try {
@@ -242,10 +252,9 @@ router.get("/:id", authenticateJWT, async (req, res) => {
   }
 });
 
-
 /* =========================================================
-   creating an echo 
-   ========================================================= */ 
+   creating an echo
+   ========================================================= */
 router.post(
   "/",
   [authenticateJWT, upload.array("media", 10)],
@@ -257,6 +266,7 @@ router.post(
         text,
         unlock_datetime,
         show_sender_name,
+        location_locked,
         lat,
         lng,
         customRecipients,
@@ -363,6 +373,7 @@ router.post(
         recipient_type,
         text,
         unlock_datetime,
+        location_locked,
         show_sender_name,
         lat,
         lng,
@@ -447,7 +458,7 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
         where: {
           [Op.or]: [
             { user_id: echo.user_id, friend_id: user_id },
-            { user_id, friend_id: echo.user_id }
+            { user_id, friend_id: echo.user_id },
           ],
           status: "accepted",
         },
@@ -483,7 +494,7 @@ router.patch("/:id/unlock", authenticateJWT, async (req, res) => {
   }
 });
 
-// deleting an echo 
+// deleting an echo
 router.delete("/:id", authenticateJWT, async (req, res) => {
   try {
     const user_id = req.user.id;
