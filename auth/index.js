@@ -126,7 +126,11 @@ router.post("/signup", async (req, res) => {
 
     // Create new user
     const passwordHash = User.hashPassword(password);
-    const user = await User.create({ username, passwordHash, email });
+    const user = await User.create({
+      username,
+      password_hash: passwordHash,
+      email,
+    });
 
     // Generate JWT token
     const token = jwt.sign(
