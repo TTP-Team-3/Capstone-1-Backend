@@ -106,10 +106,10 @@ router.post("/signup", async (req, res) => {
   try {
     const { username, password, email } = req.body;
 
-    if (!username || !password) {
+    if (!username || !password || !email) {
       return res
         .status(400)
-        .send({ error: "Username and password are required" });
+        .send({ error: "Username, password and email are required" });
     }
 
     if (password.length < 6) {
@@ -126,7 +126,7 @@ router.post("/signup", async (req, res) => {
 
     // Create new user
     const passwordHash = User.hashPassword(password);
-    const user = await User.create({ username, passwordHash });
+    const user = await User.create({ username, passwordHash, email });
 
     // Generate JWT token
     const token = jwt.sign(
@@ -149,7 +149,7 @@ router.post("/signup", async (req, res) => {
 
     res.send({
       message: "User created successfully",
-      user: { id: user.id, username: user.username },
+      user: { id: user.id, username: user.username, email: username.email },
     });
   } catch (error) {
     console.error("Signup error:", error);
