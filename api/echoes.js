@@ -279,21 +279,19 @@ router.post(
       }
 
       // checking if unlock_datetime is in the future
-      const unlockTime = new Date(unlock_datetime);
+      // const unlockTime = new Date(unlock_datetime);
 
-      if (isNaN(unlockTime.getTime())) {
-        return res
-          .status(400)
-          .json({ error: "Invalid unlock_datetime format" });
-      }
+      // if (isNaN(unlockTime.getTime())) {
+      //   return res
+      //     .status(400)
+      //     .json({ error: "Invalid unlock_datetime format" });
+      // }
 
-      console.log("Now: ", new Date());
-      console.log("New time: ", unlockTime);
-      if (unlockTime.getTime() < new Date().getTime()) {
-        return res
-          .status(400)
-          .json({ error: "unlock_datetime must be in the future" });
-      }
+      // if (unlockTime.getTime() < new Date().getTime()) {
+      //   return res
+      //     .status(400)
+      //     .json({ error: "unlock_datetime must be in the future" });
+      // }
 
       // validating customRecipients array if recipient_type is 'custom'
       if (recipient_type === "custom") {
